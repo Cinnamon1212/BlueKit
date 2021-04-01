@@ -6,7 +6,6 @@ import bluetooth
 import pyshark
 import keyboard
 from datetime import datetime
-import numpy as np
 # globals
 nearby = []
 services = []
