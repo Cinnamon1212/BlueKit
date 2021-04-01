@@ -15,6 +15,7 @@ load_capture = ""
 file = ""
 display_filter = ""
 packet_selection = ""
+saved_packets = []
 
 def setglobal(var, value):
     if var == "nearby":
@@ -38,7 +39,9 @@ def setglobal(var, value):
     elif var == "packet_selection":
         global packet_selection
         packet_selection = value
-
+    elif var == "saved_packets":
+        global saved_packets
+        saved_packets = value
 
 def checkglobal(var):
     if var == "nearby":
@@ -62,35 +65,36 @@ def checkglobal(var):
     elif var == "packet_selection":
         global packet_selection
         return packet_selection
+    elif var == "saved_packets":
+        global saved_packets
+        return saved_packets
 
-
-def cls():
+def cls():  # clear console
     os.system("clear")
-
-
-def scan_nearby():
+def scan_nearby():  # Find nearby devices
     nearby = bluetooth.discover_devices(lookup_names=True)
     return nearby
-
-def view_packets():
+def view_packets():  # Viewing packet information
     file = checkglobal("file")
     display_filter = checkglobal("display_filter")
     capture = checkglobal("load_capture")
     if capture == "":
         if file == "":
-	    print("Please load a file first!")
+            print("Please load a file first!")
             time.sleep(3)
             cls()
             packet_analysis()
         if display_filter == "":
             capture = pyshark.FileCapture(file, use_json=True, include_raw=True)
-            setglobal(capture, load_capture)
-        else:
+            setglobal("load_capture", capture)
+        else:  # display filter is validated at assignment
             capture = pyshark.FileCapture(file, display_filter=display_filter, use_json=True, include_raw=True)
-
+            setglobal("load_capture", capture)
+    else:
+        pass  # capture already loaded
     print("(1) View layers")
-    print("(2) Capture values")
-    print("(3) Save packet")
+    print("(2) View saved packets")
+    print("(<) Back")
     print("(*) Packet selection")
     menu_choice = input("Please enter an option from the menu: ")
     menu_choice = menu_choice.lower()
@@ -141,8 +145,13 @@ def view_packets():
                 try:
                     end = int(end)
                     end = end - 1
-                    packet_range.append(end)
-                    break
+                    if end <= start:
+                        print("Invalid end range selected")
+                        time.sleep(2)
+                        cls()
+                    else:
+                        packet_range.append(end)
+                        break
                 except ValueError:
                     print("Invalid packet number")
                     time.sleep(2)
@@ -152,16 +161,120 @@ def view_packets():
             time.sleep(2)
             cls()
             view_packets()
+    elif menu_choice == "<" or menu_choice == "back":
+        cls()
+        packet_analysis()
     elif menu_choice == "1" or menu_choice == "view layers":
-	if packet_select == "all":
-	    i = 1
+        capture = checkglobal("load_capture")
+        packet_selection = checkglobal("packet_selection")
+        if packet_selection == "":
+            print("No packets selected!")
+            time.sleep(2)
+            view_packets()
+        saved_packets = checkglobal("saved_packets")
+        if packet_selection == "all":
+            i = 1
             for packet in capture:
-		for layer in packet:
-		    print(layer)
-		    input("Press enter to go to the next layer")
-		print(f"Packet number {i}")
-		i += 1
-def packet_analysis():
+                print(f"\nPacket number {i}")
+                for layer in packet:
+                    print(layer)
+                    input("\nPress enter to go to the next layer")
+                x = input("\nPress enter for next packet (or s to save, q to quit): ")
+                x = x.lower()
+                if x == "s" or x == "save":
+                    saved_packets.append(packet)
+                    setglobal("saved_packets", saved_packets)
+                    print(f"Packet {i} saved")
+                    i += 1
+                elif x == "q" or x == "quit":
+                    cls()
+                    view_packets()
+            input("Press enter to go back")
+            cls()
+            view_packets()
+        elif isinstance(packet_selection, int):
+            packet = capture[packet_selection]
+            for layer in packet:
+                print(layer)
+                x = input("Press enter to go to the next layer (or q to quit)")
+                x = x.lower()
+                if x == "q" or x == "quit":
+                    cls()
+                    view_packets()
+            x = input("Press enter to go back (or type s to save): ")
+            if x.lower() == "s" or x.lower() == "save":
+                saved_packets.append(capture[packet_selection])
+                setglobal("saved_packets", saved_packets)
+                print(f"Packet {packet_selection} saved")
+                time.sleep(1)
+                cls()
+                view_packets()
+        else:
+            start = packet_selection[0]
+            end = packet_selection[1]
+            i = start
+            while i != end:
+                packet = capture[i]
+                print(f"packet number {i}")
+                for layer in packet:
+                    print(layer)
+                    x = input("\nPress enter to go to the next layer (or q to quit)")
+                    x = x.lower()
+                    if x == "q" or x == "quit":
+                        cls()
+                        view_packets()
+                x = input("\nPress enter for next packet (or s to save, q to exit): ")
+                x = x.lower()
+                if x == "s" or x == "save":
+                    saved_packets.append(packet)
+                    setglobal("saved_packets", saved_packets)
+                    print(f"Packet {i} saved")
+                    time.sleep(1)
+                    i += 1
+                elif x == "q" or x == "quit":
+                    cls()
+                    view_packets()
+            input("Press enter to go back")
+            cls()
+            view_packets()
+    elif menu_choice == "2" or menu_choice == "view saved":
+        saved_packets = checkglobal("saved_packets")
+        if saved_packets == []:
+            print("No packets saved!")
+            time.sleep(2)
+            cls()
+            view_packets()
+        print(f"{len(saved_packets)} packets saved.")
+        while True:
+            i = 1
+            for packet in saved_packets:
+                print(f"({i}) Packet number {i}")
+                i += 1
+            packet = input("Please enter which packet you'd like to view (type < to go back): ")
+            if packet.lower() == "back" or packet == "<":
+                break
+                cls()
+                view_packets()
+            try:
+                packet = int(packet - 1)
+            except ValueError:
+                print("Invalid packet number")
+                time.sleep(2)
+                cls()
+            try:
+                packet = saved_packets[packet]
+                print(packet)
+            except:
+                print("Packet out of range")
+
+            x = input("Press enter to go back (or < to exit)")
+            if x == "<" or x.lower() == "exit":
+                break
+                cls()
+                main()
+            else:
+                cls()
+def packet_analysis():  #  Load file and filter packets
     print("(1) View packets")
     print("(2) Apply display filter")
     print("(<) Back")
@@ -238,8 +351,6 @@ def packet_analysis():
                 time.sleep(2)
                 cls()
         packet_analysis()
-
-
 def main():
     print("(1) Scan nearby devices")
     print("(2) Scan services")
@@ -485,7 +596,7 @@ def main():
                 if keyboard.is_pressed("q"):
                     capture.close()
                     scan = False
-                    print(f"PCAP file saved as {filename}.pcap")
+                    print(f"PCAP file saved as {filename}")
                     time.sleep(3)
                     cls()
                     main()
@@ -527,7 +638,7 @@ def main():
     else:
         print("Please choose between 1 and x")
         cls()
-        main()
+        main()  # Main menu
 
 if __name__ == "__main__":
     if os.geteuid() != 0:
