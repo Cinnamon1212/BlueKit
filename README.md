@@ -4,7 +4,7 @@ Bluetooth hacking/packet analysis tool kit
 
 OS requirements:  
 * Debian or Ubuntu
-* Pybluez tools (eg. bluetoothctl)
+* Bluetooth utils
 * Python3
 * Tshark
 
