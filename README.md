@@ -13,7 +13,7 @@ Pip requirements:
 * Keyboard
 * Pyshark
 
-### Set Up  
+### Set Up  (RAN USING SUDO)
 ```bash
 apt update
 apt install tshark
